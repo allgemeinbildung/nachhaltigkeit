@@ -1,150 +1,368 @@
 <!DOCTYPE html>
-<html>
+<html lang="de">
 <head>
-  <title>Nachhaltigkeits-Lernspiel</title>
-  <style>
-    /* Ähnliche Styles wie im ursprünglichen Spiel */
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bauernhof-Simulator: Ertrag vs. Nachhaltigkeit</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        #game-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #2c3e50;
+        }
+        #chart-container {
+            width: 100%;
+            height: 300px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 10px 0;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        #feedback {
+            margin-top: 20px;
+            font-style: italic;
+        }
+        #highscore {
+            font-weight: bold;
+            color: #e74c3c;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-  <div id="game-container">
-    <h1>Nachhaltigkeits-Lernspiel</h1>
-    <div id="game-board">
-      <canvas id="game-canvas" width="600" height="400"></canvas>
-      <div id="decision-box" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; padding: 20px; border: 1px solid #ddd; display: none;">
-        <h2 id="decision-title"></h2>
-        <p id="decision-description"></p>
-        <button id="decision-option1">Option 1</button>
-        <button id="decision-option2">Option 2</button>
-        <button id="decision-option3">Option 3</button>
-      </div>
+    <div id="game-container">
+        <h1>Bauernhof-Simulator: Ertrag vs. Nachhaltigkeit</h1>
+        <div id="intro">
+            <p>Willkommen zum Bauernhof-Simulator! Du übernimmst die Rolle des Bauern Ruedi und musst wichtige Entscheidungen treffen, die den Ertrag und die Nachhaltigkeit deines Tomatenanbaus beeinflussen. Dein Ziel ist es, eine Balance zwischen wirtschaftlichem Erfolg und ökologischer Verantwortung zu finden. Viel Glück!</p>
+            <button onclick="startGame()">Spiel starten</button>
+        </div>
+        <div id="game" style="display: none;">
+            <h2>Runde <span id="round-number">1</span>/12</h2>
+            <p id="scenario"></p>
+            <div id="choices"></div>
+            <div id="chart-container">
+                <canvas id="chart"></canvas>
+            </div>
+            <p id="feedback"></p>
+            <button id="next-round" style="display: none;" onclick="nextRound()">Nächste Runde</button>
+        </div>
+        <div id="end-game" style="display: none;">
+            <h2>Spiel beendet</h2>
+            <p>Dein Endergebnis: <span id="final-score"></span> Punkte</p>
+            <p id="highscore">Highscore: <span id="highscore-value">0</span> Punkte</p>
+            <p id="final-feedback"></p>
+            <button onclick="restartGame()">Erneut spielen</button>
+        </div>
     </div>
-    <div id="score-board">
-      <p>Nachhaltigkeits-Score: <span id="score-nachhaltigkeit">0</span></p>
-      <p>Umwelt-Impact: <span id="score-umweltimpact">0</span></p>
-      <p>Highscore: <span id="highscore">0</span></p>
-    </div>
-    <button id="restart-button">Wiederholen</button>
-  </div>
 
-  <script>
-    // Spiellogik und Grafik-Funktionen
-    let nachhaltigkeit = 50;
-    let umweltimpact = 50;
-    let highscore = 0;
-    let currentRound = 1;
-    const maxRounds = 12;
+    <script>
+        let currentRound = 0;
+        let score = 0;
+        let yield = 50;
+        let sustainability = 50;
+        let highscore = 0;
+        let chart;
 
-    const gameCanvas = document.getElementById('game-canvas');
-    const ctx = gameCanvas.getContext('2d');
+        const scenarios = [
+            {
+                question: "Eine große Flutwelle hat die Bauernhöfe in Spanien überschwemmt. Glücklicherweise ist unser Standort in der Schweiz nicht betroffen. Was sollen wir tun?",
+                choices: [
+                    { text: "Produktionsmenge der Tomaten erhöhen", yield: 10, sustainability: -5 },
+                    { text: "Keine Maßnahmen ergreifen", yield: 0, sustainability: 0 },
+                    { text: "Produktionsmenge der Tomaten senken", yield: -5, sustainability: 5 }
+                ],
+                feedback: {
+                    best: "Gut gemacht! Die erhöhte Nachfrage aufgrund der Flut in Spanien ermöglicht es uns, unsere Produktion zu steigern und den Marktanteil zu erhöhen.",
+                    worst: "Schade, die Chance auf eine Markterweiterung wurde verpasst. In solchen Situationen ist es wichtig, flexibel zu reagieren."
+                }
+            },
+            {
+                question: "Ein neues Bio-Zertifikat wird eingeführt. Die Umstellung würde unsere Produktionskosten erhöhen, könnte aber langfristig vorteilhaft sein. Was tun wir?",
+                choices: [
+                    { text: "Sofort auf Bio umstellen", yield: -10, sustainability: 15 },
+                    { text: "Teilweise umstellen und testen", yield: -5, sustainability: 5 },
+                    { text: "Keine Umstellung vornehmen", yield: 5, sustainability: -10 }
+                ],
+                feedback: {
+                    best: "Gute Entscheidung! Die teilweise Umstellung ermöglicht es uns, die Vorteile des Bio-Anbaus zu testen, ohne zu große Risiken einzugehen.",
+                    worst: "Das war leider keine optimale Entscheidung. Das Bio-Zertifikat bietet langfristige Vorteile, die wir nicht ignorieren sollten."
+                }
+            },
+            {
+                question: "Ein lokaler Supermarkt bietet uns einen Exklusivvertrag an. Dies würde unseren Absatz sichern, aber wir müssten unsere Preise senken. Was tun wir?",
+                choices: [
+                    { text: "Vertrag annehmen", yield: 15, sustainability: -5 },
+                    { text: "Vertrag ablehnen", yield: -5, sustainability: 5 },
+                    { text: "Verhandlungen fortsetzen", yield: 5, sustainability: 0 }
+                ],
+                feedback: {
+                    best: "Ausgezeichnet! Die Fortsetzung der Verhandlungen ermöglicht es uns, bessere Bedingungen auszuhandeln und gleichzeitig unsere Marktposition zu stärken.",
+                    worst: "Das war keine optimale Entscheidung. Ein völliges Ablehnen des Vertrags könnte uns wichtige Absatzmöglichkeiten kosten."
+                }
+            },
+            {
+                question: "Eine neue Tomatensorte verspricht höhere Erträge, benötigt aber mehr Dünger. Wie gehen wir damit um?",
+                choices: [
+                    { text: "Komplett auf die neue Sorte umstellen", yield: 20, sustainability: -15 },
+                    { text: "Bei der alten Sorte bleiben", yield: 0, sustainability: 5 },
+                    { text: "Teilweise umstellen und beobachten", yield: 10, sustainability: -5 }
+                ],
+                feedback: {
+                    best: "Sehr gut! Die teilweise Umstellung ermöglicht es uns, die Vorteile der neuen Sorte zu nutzen, ohne zu große Risiken einzugehen.",
+                    worst: "Das war leider keine optimale Entscheidung. Eine vollständige Umstellung birgt zu große Risiken für die Nachhaltigkeit unseres Betriebs."
+                }
+            },
+            {
+                question: "Die Regierung führt strengere Umweltauflagen ein. Wie reagieren wir darauf?",
+                choices: [
+                    { text: "Sofort alle Auflagen umsetzen", yield: -10, sustainability: 20 },
+                    { text: "Minimale Anpassungen vornehmen", yield: -5, sustainability: 5 },
+                    { text: "Lobbyarbeit betreiben, um Auflagen zu lockern", yield: 5, sustainability: -15 }
+                ],
+                feedback: {
+                    best: "Gute Entscheidung! Die sofortige Umsetzung der Auflagen verbessert unsere Nachhaltigkeit erheblich und positioniert uns als verantwortungsbewusstes Unternehmen.",
+                    worst: "Das war keine kluge Entscheidung. Lobbyarbeit gegen Umweltauflagen kann unserem Ruf schaden und uns langfristig Nachteile bringen."
+                }
+            },
+            {
+                question: "Ein heftiger Hagelsturm hat einen Teil unserer Ernte zerstört. Wie gehen wir damit um?",
+                choices: [
+                    { text: "Verluste hinnehmen und nichts ändern", yield: -15, sustainability: 0 },
+                    { text: "In Schutzvorrichtungen investieren", yield: -5, sustainability: 10 },
+                    { text: "Versicherung abschließen", yield: -10, sustainability: 5 }
+                ],
+                feedback: {
+                    best: "Ausgezeichnet! Die Investition in Schutzvorrichtungen schützt unsere Ernte langfristig und verbessert die Nachhaltigkeit unseres Betriebs.",
+                    worst: "Das war keine optimale Entscheidung. Es ist wichtig, aus solchen Ereignissen zu lernen und Vorkehrungen für die Zukunft zu treffen."
+                }
+            },
+            {
+                question: "Ein benachbarter Biobauer bietet eine Kooperation an. Was tun wir?",
+                choices: [
+                    { text: "Kooperation eingehen", yield: 5, sustainability: 15 },
+                    { text: "Angebot ablehnen", yield: 0, sustainability: -5 },
+                    { text: "Teilweise kooperieren", yield: 5, sustainability: 5 }
+                ],
+                feedback: {
+                    best: "Hervorragend! Die Kooperation mit dem Biobauern verbessert unsere Nachhaltigkeit erheblich und eröffnet neue Marktchancen.",
+                    worst: "Schade, das war keine gute Entscheidung. Eine Kooperation hätte uns viele Vorteile in Bezug auf Nachhaltigkeit und Marktzugang gebracht."
+                }
+            },
+            {
+                question: "Eine neue Bewässerungstechnologie verspricht Wassereinsparungen. Wie entscheiden wir uns?",
+                choices: [
+                    { text: "Sofort einführen", yield: -5, sustainability: 20 },
+                    { text: "Abwarten und beobachten", yield: 0, sustainability: -5 },
+                    { text: "Teilweise einführen und testen", yield: -5, sustainability: 10 }
+                ],
+                feedback: {
+                    best: "Gut gemacht! Die sofortige Einführung der neuen Bewässerungstechnologie verbessert unsere Nachhaltigkeit erheblich und spart langfristig Ressourcen.",
+                    worst: "Das war keine optimale Entscheidung. Neue Technologien zur Ressourceneinsparung sollten nicht ignoriert werden, da sie langfristig vorteilhaft sind."
+                }
+            },
+            {
+                question: "Ein Lebensmittelkonzern möchte unsere gesamte Produktion aufkaufen. Wie reagieren wir?",
+                choices: [
+                    { text: "Angebot annehmen", yield: 25, sustainability: -20 },
+                    { text: "Angebot ablehnen", yield: -5, sustainability: 10 },
+                    { text: "Teilweise Zusammenarbeit vorschlagen", yield: 10, sustainability: -5 }
+                ],
+                feedback: {
+                    best: "Ausgezeichnet! Der Vorschlag einer teilweisen Zusammenarbeit ermöglicht es uns, von der Partnerschaft zu profitieren, ohne unsere Unabhängigkeit aufzugeben.",
+                    worst: "Das war keine kluge Entscheidung. Eine vollständige Abhängigkeit von einem Großkonzern birgt langfristig Risiken für unsere Nachhaltigkeit."
+                }
+            },
+            {
+                question: "Eine Dürreperiode wird vorhergesagt. Wie bereiten wir uns vor?",
+                choices: [
+                    { text: "Wasservorräte anlegen", yield: -5, sustainability: 15 },
+                    { text: "Produktion reduzieren", yield: -15, sustainability: 5 },
+                    { text: "Auf regenfeste Sorten umstellen", yield: -10, sustainability: 10 }
+                ],
+                feedback: {
+                    best: "Sehr gut! Das Anlegen von Wasservorräten ist eine nachhaltige Lösung, die uns hilft, die Dürreperiode zu überstehen, ohne die Produktion stark zu reduzieren.",
+                    worst: "Das war keine optimale Entscheidung. Eine starke Reduzierung der Produktion sollte nur als letzter Ausweg in Betracht gezogen werden."
+                }
+            },
+            {
+                question: "Ein lokaler Bauernmarkt sucht neue Anbieter. Sollen wir teilnehmen?",
+                choices: [
+                    { text: "Vollzeit am Markt teilnehmen", yield: 10, sustainability: 10 },
+                    { text: "Gelegentlich teilnehmen", yield: 5, sustainability: 5 },
+                    { text: "Nicht teilnehmen", yield: 0, sustainability: -5 }
+                ],
+                feedback: {
+                    best: "Ausgezeichnet! Die Vollzeitteilnahme am Bauernmarkt verbessert unseren lokalen Absatz und stärkt unsere Nachhaltigkeitsreputation.",
+                    worst: "Schade, das war keine gute Entscheidung. Die Teilnahme am Bauernmarkt hätte uns neue Absatzmöglichkeiten und eine Verbesserung unseres lokalen Images gebracht."
+                }
+            },
+            {
+                question: "Eine Studie zeigt, dass unsere Tomaten einen hohen Vitamingehalt haben. Wie nutzen wir diese Information?",
+                choices: [
+                    { text: "Große Marketingkampagne starten", yield: 15, sustainability: -5 },
+                    { text: "Information auf Verpackung hinzufügen", yield: 5, sustainability: 5 },
+                    { text: "Keine Maßnahmen ergreifen", yield: 0, sustainability: 0 }
+                ],
+                feedback: {
+                    best: "Gut gemacht! Die Hinzufügung der Information auf der Verpackung informiert die Kunden, ohne übermäßige Ressourcen für Marketing zu verschwenden.",
+                    worst: "Das war keine optimale Entscheidung. Es ist wichtig, positive Eigenschaften unserer Produkte zu kommunizieren, um wettbewerbsfähig zu bleiben."
+                }
+            }
+        ];
 
-    function drawGameBoard() {
-      // Grafik des Spielfelds zeichnen
-      ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
-      ctx.beginPath();
-      ctx.rect(50, 50, 500, 300);
-      ctx.stroke();
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
 
-      // Nachhaltigkeits-Score und Umwelt-Impact darstellen
-      ctx.font = '24px Arial';
-      ctx.fillText(`Nachhaltigkeits-Score: ${nachhaltigkeit}`, 100, 100);
-      ctx.fillText(`Umwelt-Impact: ${umweltimpact}`, 100, 150);
-    }
+        function startGame() {
+            document.getElementById('intro').style.display = 'none';
+            document.getElementById('game').style.display = 'block';
+            shuffleArray(scenarios);
+            nextRound();
+            updateChart();
+        }
 
-    function showDecision(title, description, option1, option2, option3) {
-      // Ähnlich wie im ursprünglichen Spiel
-    }
+        function nextRound() {
+            if (currentRound < 12) {
+                document.getElementById('round-number').textContent = currentRound + 1;
+                document.getElementById('scenario').textContent = scenarios[currentRound].question;
+                document.getElementById('choices').innerHTML = '';
+                scenarios[currentRound].choices.forEach((choice, index) => {
+                    const button = document.createElement('button');
+                    button.textContent = choice.text;
+                    button.onclick = () => makeChoice(index);
+                    document.getElementById('choices').appendChild(button);
+                });
+                document.getElementById('feedback').textContent = '';
+                document.getElementById('next-round').style.display = 'none';
+            } else {
+                endGame();
+            }
+        }
 
-    function handleDecision(option) {
-      const decisionBox = document.getElementById('decision-box');
-      decisionBox.style.display = 'none';
+        function makeChoice(choiceIndex) {
+            const choice = scenarios[currentRound].choices[choiceIndex];
+            yield += choice.yield;
+            sustainability += choice.sustainability;
+            yield = Math.max(0, Math.min(100, yield));
+            sustainability = Math.max(0, Math.min(100, sustainability));
+            score = Math.round((yield + sustainability) / 2);
 
-      // Entscheidungslogik basierend auf der gewählten Option
-      switch (option) {
-        case 1:
-          // Nachhaltige Maßnahmen ergreifen
-          nachhaltigkeit += 10;
-          umweltimpact -= 5;
-          break;
-        case 2:
-          // Keine Maßnahmen ergreifen
-          nachhaltigkeit += 5;
-          umweltimpact += 5;
-          break;
-        case 3:
-          // Umweltschädliche Maßnahmen ergreifen
-          nachhaltigkeit -= 10;
-          umweltimpact += 10;
-          break;
-      }
+            updateChart();
 
-      // Highscore aktualisieren
-      const score = nachhaltigkeit - umweltimpact;
-      if (score > highscore) {
-        highscore = score;
-      }
+            const feedback = document.getElementById('feedback');
+            if (choiceIndex === getBestChoiceIndex()) {
+                feedback.textContent = scenarios[currentRound].feedback.best;
+            } else if (choiceIndex === getWorstChoiceIndex()) {
+                feedback.textContent = scenarios[currentRound].feedback.worst;
+            } else {
+                feedback.textContent = "Eine akzeptable Entscheidung, aber es gab möglicherweise eine bessere Option.";
+            }
 
-      // Grafik aktualisieren
-      drawGameBoard();
-      updateScoreBoard();
+            document.getElementById('choices').innerHTML = '';
+            document.getElementById('next-round').style.display = 'block';
+            currentRound++;
+        }
 
-      // Nächste Runde
-      currentRound++;
-      if (currentRound <= maxRounds) {
-        setTimeout(showNextDecision, 2000);
-      } else {
-        showFinalScore();
-      }
-    }
+        function getBestChoiceIndex() {
+            return scenarios[currentRound].choices.reduce((maxIndex, choice, index, choices) => 
+                (choice.yield + choice.sustainability > choices[maxIndex].yield + choices[maxIndex].sustainability) ? index : maxIndex
+            , 0);
+        }
 
-    function showNextDecision() {
-      // Zufällige Entscheidungen für die nächste Runde auswählen
-      const decisions = [
-        {
-          title: "Neue Umweltauflagen",
-          description: "Die Regierung hat neue Umweltauflagen für die Landwirtschaft eingeführt. Wie sollen wir darauf reagieren?",
-          option1: "Nachhaltige Maßnahmen ergreifen",
-          option2: "Keine Maßnahmen ergreifen",
-          option3: "Umweltschädliche Maßnahmen ergreifen"
-        },
-        {
-          title: "Investition in erneuerbare Energien",
-          description: "Wir haben die Möglichkeit, in erneuerbare Energien zu investieren. Wie sollen wir vorgehen?",
-          option1: "Investition in erneuerbare Energien",
-          option2: "Keine Investition",
-          option3: "Investition in fossile Brennstoffe"
-        },
-        // Weitere Entscheidungen hinzufügen
-      ];
+        function getWorstChoiceIndex() {
+            return scenarios[currentRound].choices.reduce((minIndex, choice, index, choices) => 
+                (choice.yield + choice.sustainability < choices[minIndex].yield + choices[minIndex].sustainability) ? index : minIndex
+            , 0);
+        }
 
-      const randomIndex = Math.floor(Math.random() * decisions.length);
-      const decision = decisions[randomIndex];
-      showDecision(decision.title, decision.description, decision.option1, decision.option2, decision.option3);
-    }
+        function updateChart() {
+            if (chart) {
+                chart.data.datasets[0].data = [yield, sustainability];
+                chart.update();
+            } else {
+                const ctx = document.getElementById('chart').getContext('2d');
+                chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Ertrag', 'Nachhaltigkeit'],
+                        datasets: [{
+                            label: 'Werte',
+                            data: [yield, sustainability],
+                            backgroundColor: ['rgba(255, 99, 132, 0.2)', 'rgba(75, 192, 192, 0.2)'],
+                            borderColor: ['rgb(255, 99, 132)', 'rgb(75, 192, 192)'],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100
+                            }
+                        }
+                    }
+                });
+            }
+        }
 
-    function updateScoreBoard() {
-      document.getElementById('score-nachhaltigkeit').textContent = nachhaltigkeit;
-      document.getElementById('score-umweltimpact').textContent = umweltimpact;
-      document.getElementById('highscore').textContent = highscore;
-    }
+        function endGame() {
+            document.getElementById('game').style.display = 'none';
+            document.getElementById('end-game').style.display = 'block';
+            document.getElementById('final-score').textContent = score;
+            if (score > highscore) {
+                highscore = score;
+                document.getElementById('highscore-value').textContent = highscore;
+            }
 
-    function showFinalScore() {
-      alert(`Spiel beendet! Dein Nachhaltigkeits-Highscore ist ${highscore}.`);
-    }
+            let feedback = "Dein Spiel ist beendet. ";
+            if (score >= 80) {
+                feedback += "Hervorragende Leistung! Du hast eine ausgezeichnete Balance zwischen Ertrag und Nachhaltigkeit erreicht.";
+            } else if (score >= 60) {
+                feedback += "Gute Arbeit! Du hast ein solides Verständnis für die Herausforderungen in der Landwirtschaft gezeigt.";
+            } else if (score >= 40) {
+                feedback += "Du hast einige gute Entscheidungen getroffen, aber es gibt noch Raum für Verbesserungen in der Balance zwischen Ertrag und Nachhaltigkeit.";
+            } else {
+                feedback += "Es war ein herausforderndes Spiel. Versuche beim nächsten Mal, mehr auf die langfristigen Auswirkungen deiner Entscheidungen zu achten.";
+            }
 
-    // Spielstart
-    drawGameBoard();
-    showNextDecision();
+            document.getElementById('final-feedback').textContent = feedback;
+        }
 
-    // Restart-Funktion
-    document.getElementById('restart-button').addEventListener('click', () => {
-      nachhaltigkeit = 50;
-      umweltimpact = 50;
-      highscore = 0;
-      currentRound = 1;
-      drawGameBoard();
-      showNextDecision();
-    });
-  </script>
+        function restartGame() {
+            currentRound = 0;
+            score = 0;
+            yield = 50;
+            sustainability = 50;
+            shuffleArray(scenarios);
+            document.getElementById('end-game').style.display = 'none';
+            document.getElementById('game').style.display = 'block';
+            nextRound();
+            updateChart();
+        }
+    </script>
 </body>
 </html>
