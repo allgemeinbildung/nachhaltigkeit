@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Bauernhof-Lernspiel</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background-color: #f2f2f2;
+    }
+    
+    #game-container {
+      margin-top: 50px;
+    }
+    
+    #game-board {
+      width: 600px;
+      height: 400px;
+      border: 1px solid #ddd;
+      background-color: white;
+      position: relative;
+    }
+    
+    #score-board {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+    
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <h1>Bauernhof-Lernspiel</h1>
+    <div id="game-board">
+      <canvas id="game-canvas" width="600" height="400"></canvas>
+      <div id="decision-box" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; padding: 20px; border: 1px solid #ddd; display: none;">
+        <h2 id="decision-title"></h2>
+        <p id="decision-description"></p>
+        <button id="decision-option1">Option 1</button>
+        <button id="decision-option2">Option 2</button>
+        <button id="decision-option3">Option 3</button>
+      </div>
+    </div>
+    <div id="score-board">
+      <p>Ertrag: <span id="score-ertrag">0</span></p>
+      <p>Nachhaltigkeit: <span id="score-nachhaltigkeit">0</span></p>
+      <p>Highscore: <span id="highscore">0</span></p>
+    </div>
+    <button id="restart-button">Wiederholen</button>
+  </div>
+
+  <script>
+    // Spiellogik und Grafik-Funktionen
+    let ertrag = 50;
+    let nachhaltigkeit = 50;
+    let highscore = 0;
+    let currentRound = 1;
+    const maxRounds = 12;
+
+    const gameCanvas = document.getElementById('game-canvas');
+    const ctx = gameCanvas.getContext('2d');
+
+    function drawGameBoard() {
+      // Grafik des Spielfelds zeichnen
+      ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+      ctx.beginPath();
+      ctx.rect(50, 50, 500, 300);
+      ctx.stroke();
+
+      // Ertrag und Nachhaltigkeit darstellen
+      ctx.font = '24px Arial';
+      ctx.fillText(`Ertrag: ${ertrag}`, 100, 100);
+      ctx.fillText(`Nachhaltigkeit: ${nachhaltigkeit}`, 100, 150);
+    }
+
+    function showDecision(title, description, option1, option2, option3) {
+      const decisionBox = document.getElementById('decision-box');
+      document.getElementById('decision-title').textContent = title;
+      document.getElementById('decision-description').textContent = description;
+      document.getElementById('decision-option1').textContent = option1;
+      document.getElementById('decision-option2').textContent = option2;
+      document.getElementById('decision-option3').textContent = option3;
+      decisionBox.style.display = 'block';
+    }
+
+    function handleDecision(option) {
+      const decisionBox = document.getElementById('decision-box');
+      decisionBox.style.display = 'none';
+
+      // Entscheidungslogik basierend auf der gewählten Option
+      switch (option) {
+        case 1:
+          // Produktionsmenge der Tomaten erhöhen
+          ertrag += 10;
+          nachhaltigkeit -= 5;
+          break;
+        case 2:
+          // Keine Maßnahmen ergreifen
+          ertrag += 5;
+          nachhaltigkeit += 5;
+          break;
+        case 3:
+          // Produktionsmenge der Tomaten senken
+          ertrag -= 10;
+          nachhaltigkeit += 10;
+          break;
+      }
+
+      // Highscore aktualisieren
+      const score = ertrag + nachhaltigkeit;
+      if (score > highscore) {
+        highscore = score;
+      }
+
+      // Grafik aktualisieren
+      drawGameBoard();
+      updateScoreBoard();
+
+      // Nächste Runde
+      currentRound++;
+      if (currentRound <= maxRounds) {
+        setTimeout(showNextDecision, 2000);
+      } else {
+        showFinalScore();
+      }
+    }
+
+    function showNextDecision() {
+      // Zufällige Entscheidung für die nächste Runde auswählen
+      const decisions = [
+        {
+          title: "Flutwelle in Spanien",
+          description: "Eine große Flutwelle hat die Bauernhöfe in Spanien überschwemmt. Glücklicherweise ist unser Standort in der Schweiz nicht betroffen. Was sollen wir tun?",
+          option1: "Produktionsmenge der Tomaten erhöhen",
+          option2: "Keine Maßnahmen ergreifen",
+          option3: "Produktionsmenge der Tomaten senken"
+        },
+        {
+          title: "Neue Umweltauflagen",
+          description: "Die Regierung hat neue Umweltauflagen für die Landwirtschaft eingeführt. Das erhöht unsere Produktionskosten. Wie sollen wir darauf reagieren?",
+          option1: "Produktionsmenge der Tomaten erhöhen",
+          option2: "Keine Maßnahmen ergreifen",
+          option3: "Produktionsmenge der Tomaten senken"
+        },
+        // Weitere Entscheidungen hinzufügen
+      ];
+
+      const randomIndex = Math.floor(Math.random() * decisions.length);
+      const decision = decisions[randomIndex];
+      showDecision(decision.title, decision.description, decision.option1, decision.option2, decision.option3);
+    }
+
+    function updateScoreBoard() {
+      document.getElementById('score-ertrag').textContent = ertrag;
+      document.getElementById('score-nachhaltigkeit').textContent = nachhaltigkeit;
+      document.getElementById('highscore').textContent = highscore;
+    }
+
+    function showFinalScore() {
+      alert(`Spiel beendet! Dein Highscore ist ${highscore}.`);
+    }
+
+    // Spielstart
+    drawGameBoard();
+    showNextDecision();
+
+    // Restart-Funktion
+    document.getElementById('restart-button').addEventListener('click', () => {
+      ertrag = 50;
+      nachhaltigkeit = 50;
+      highscore = 0;
+      currentRound = 1;
+      drawGameBoard();
+      showNextDecision();
+    });
+  </script>
+</body>
+</html>
